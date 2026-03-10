@@ -1,83 +1,417 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <title>Registro de Formaciones</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body { height: 100%; width: 100%; overflow: hidden; background: #0f1117; }
-
-    #loader {
-      position: fixed; inset: 0;
-      display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      background: #0f1117; color: #e8eaf6;
-      font-family: 'Segoe UI', system-ui, sans-serif;
-      z-index: 10; transition: opacity .4s ease;
-    }
-    #loader .emoji { font-size: 3rem; margin-bottom: 16px; animation: pulse 1.5s ease-in-out infinite; }
-    #loader p { font-size: .95rem; color: #8f95b2; margin-top: 12px; }
-    .spinner {
-      width: 36px; height: 36px;
-      border: 3px solid #2e3452;
-      border-top-color: #1a73e8;
-      border-radius: 50%;
-      animation: spin .8s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.1); } }
-
-    iframe {
-      width: 100%; height: 100vh;
-      border: none; display: block;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Registro de Formaciones</title>
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
+<style>
+  :root {
+    --primary: #1a73e8; --primary-dark: #1557b0;
+    --success: #34a853; --danger: #ea4335; --warning: #fbbc04;
+    --bg: #0f1117; --surface: #1e2130; --surface2: #262b3d;
+    --border: #2e3452; --text: #e8eaf6; --text-muted: #8f95b2; --radius: 14px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+  .screen { display: none; width: 100%; max-width: 520px; padding: 20px; animation: fadeIn .3s ease; }
+  .screen.active { display: block; }
+  #screen-kiosco { max-width: 700px; }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 32px; }
+  .card-header { text-align: center; margin-bottom: 28px; }
+  .card-header .logo { font-size: 2.4rem; margin-bottom: 8px; }
+  .card-header h1 { font-size: 1.4rem; } .card-header p { font-size: .85rem; color: var(--text-muted); margin-top:4px; }
+  .form-group { margin-bottom: 16px; }
+  label { display:block; font-size:.82rem; color:var(--text-muted); margin-bottom:6px; font-weight:600; letter-spacing:.5px; }
+  input, select, textarea { width:100%; padding:11px 14px; background: var(--surface2); border:1px solid var(--border); border-radius:10px; color:var(--text); font-size:.95rem; outline:none; transition: border-color .2s; }
+  input:focus, select:focus, textarea:focus { border-color: var(--primary); }
+  textarea { resize: vertical; min-height: 80px; } select option { background: var(--surface2); }
+  .btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:12px 22px; border-radius:10px; border:none; font-size:.95rem; font-weight:600; cursor:pointer; transition:all .2s; width:100%; margin-top:8px; }
+  .btn-primary { background: var(--primary); color:#fff; } .btn-primary:hover { background: var(--primary-dark); transform:translateY(-1px); }
+  .btn-success { background: var(--success); color:#fff; } .btn-success:hover { filter:brightness(1.1); transform:translateY(-1px); }
+  .btn-danger { background: var(--danger); color:#fff; } .btn-outline { background:transparent; color:var(--text-muted); border:1px solid var(--border); }
+  .btn-outline:hover { border-color:var(--primary); color:var(--primary); } .btn-sm { padding:8px 14px; font-size:.85rem; width:auto; margin-top:0; }
+  .pin-display { display:flex; justify-content:center; gap:12px; margin: 20px 0; }
+  .pin-dot { width:18px; height:18px; border-radius:50%; background: var(--border); border:2px solid var(--border); transition: .2s; }
+  .pin-dot.filled { background: var(--primary); border-color: var(--primary); }
+  .pin-keypad { display:grid; grid-template-columns: repeat(3,1fr); gap:10px; margin-top:16px; }
+  .pin-key { background: var(--surface2); border:1px solid var(--border); border-radius:10px; padding:18px; font-size:1.3rem; font-weight:700; color:var(--text); cursor:pointer; transition:all .2s; text-align:center; }
+  .pin-key:hover { background:var(--primary); border-color:var(--primary); } .pin-key.delete { font-size:1rem; color:var(--danger); }
+  .badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:.75rem; font-weight:700; }
+  .badge-activa { background:#1a73e820; color:var(--primary); border:1px solid var(--primary); }
+  .badge-finalizada { background:#34a85320; color:var(--success); border:1px solid var(--success); }
+  .kiosco-header { background: linear-gradient(135deg,#1a73e8,#0d47a1); border-radius: var(--radius); padding:20px; text-align:center; margin-bottom:20px; }
+  .kiosco-header h2 { font-size:1.3rem; } .kiosco-header .sub { font-size:.85rem; opacity:.8; margin-top:4px; }
+  .search-wrapper { position:relative; }
+  .autocomplete-list { position:absolute; top:100%; left:0; right:0; z-index:100; background:var(--surface); border:1px solid var(--border); border-radius:10px; overflow:hidden; max-height:200px; overflow-y:auto; }
+  .autocomplete-item { padding:11px 14px; cursor:pointer; font-size:.92rem; transition:.15s; border-bottom:1px solid var(--border); }
+  .autocomplete-item:hover { background:var(--primary); } .autocomplete-item span { display:block; font-size:.78rem; color:var(--text-muted); }
+  #canvas-container { background:#fff; border-radius:10px; overflow:hidden; border:2px dashed var(--border); margin:16px 0; position:relative; }
+  #signature-canvas { display:block; width:100%; touch-action:none; }
+  .canvas-label { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); color:#ccc; font-size:.9rem; pointer-events:none; text-align:center; }
+  .firm-count { display:flex; align-items:center; gap:8px; background:var(--surface2); border-radius:10px; padding:12px 16px; margin-bottom:16px; font-size:.9rem; }
+  .firm-count .num { font-size:1.5rem; font-weight:800; color:var(--success); }
+  .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(80px); background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:14px 24px; font-size:.9rem; font-weight:600; z-index:9999; transition: transform .35s cubic-bezier(.34,1.56,.64,1), opacity .35s; opacity:0; white-space:nowrap; }
+  .toast.show { transform:translateX(-50%) translateY(0); opacity:1; } .toast.success { border-color:var(--success); color:var(--success); } .toast.error { border-color:var(--danger); color:var(--danger); }
+  .loader { display:inline-block; width:20px; height:20px; border:3px solid #fff4; border-top-color:#fff; border-radius:50%; animation:spin .7s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .overlay { display:none; position:fixed; inset:0; background:#000a; backdrop-filter:blur(4px); z-index:500; align-items:center; justify-content:center; }
+  .overlay.active { display:flex; }
+  .modal { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:36px; text-align:center; max-width:340px; animation: popIn .35s cubic-bezier(.34,1.56,.64,1); }
+  @keyframes popIn { from{transform:scale(.8);opacity:0} to{transform:scale(1);opacity:1} }
+  .modal .check { font-size:3.5rem; margin-bottom:12px; } .modal h3 { font-size:1.3rem; margin-bottom:8px; } .modal p { color:var(--text-muted); font-size:.9rem; }
+  .countdown { font-size:1rem; color:var(--primary); font-weight:700; margin-top:12px; }
+  .historial-list { max-height:300px; overflow-y:auto; margin-top:12px; }
+  .hist-item { display:flex; align-items:center; gap:12px; padding:10px 14px; border-bottom:1px solid var(--border); font-size:.88rem; }
+  .hist-item .dni-badge { background:var(--primary); color:#fff; border-radius:6px; padding:4px 8px; font-size:.75rem; font-weight:700; white-space:nowrap; }
+  .hist-item .name { flex:1; } .hist-item .hora { color:var(--text-muted); font-size:.78rem; }
+  /* Multi-select venues */
+  .venues-wrapper { position: relative; }
+  .venues-trigger { width:100%; padding:11px 14px; background:var(--surface2); border:1px solid var(--border); border-radius:10px; color:var(--text); font-size:.95rem; cursor:pointer; display:flex; justify-content:space-between; align-items:center; transition: border-color .2s; user-select:none; }
+  .venues-trigger:hover, .venues-trigger.open { border-color:var(--primary); }
+  .venues-trigger .arrow { transition: transform .2s; font-size:.7rem; color:var(--text-muted); }
+  .venues-trigger.open .arrow { transform: rotate(180deg); }
+  .venues-dropdown { display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; z-index:200; background:var(--surface); border:1px solid var(--border); border-radius:10px; overflow:hidden; max-height:260px; overflow-y:auto; box-shadow: 0 8px 24px rgba(0,0,0,.4); }
+  .venues-dropdown.open { display:block; animation: fadeIn .15s ease; }
+  .venue-option { display:flex; align-items:center; gap:10px; padding:11px 14px; cursor:pointer; font-size:.9rem; border-bottom:1px solid var(--border); transition: background .15s; }
+  .venue-option:hover { background:var(--surface2); }
+  .venue-option input[type=checkbox] { accent-color:var(--primary); width:16px; height:16px; cursor:pointer; }
+  .venue-option.todos { color:var(--primary); font-weight:700; background:var(--surface2); }
+  .venue-chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .venue-chip { display:inline-flex; align-items:center; gap:5px; background:var(--primary); color:#fff; border-radius:20px; padding:4px 10px; font-size:.78rem; font-weight:600; }
+  .venue-chip button { background:none; border:none; color:#fff; cursor:pointer; font-size:.85rem; line-height:1; padding:0; opacity:.8; }
+  @media(max-width:480px){ .card { padding:20px; } .pin-key { padding:14px; font-size:1.1rem; } }
+  .divider { border:none; border-top:1px solid var(--border); margin:20px 0; }
+  .flex-row { display:flex; gap:10px; } .flex-row .btn { flex:1; }
+  .mt-8 { margin-top:8px; }
+</style>
 </head>
 <body>
 
-  <div id="loader">
-    <div class="emoji">🎓</div>
-    <div class="spinner"></div>
-    <p>Cargando Sistema de Formaciones...</p>
+<!-- PIN -->
+<div id="screen-pin" class="screen active">
+  <div class="card">
+    <div class="card-header"><div class="logo">🎓</div><h1>Sistema de Formaciones</h1><p>Introduce el PIN de acceso</p></div>
+    <div class="pin-display" id="pin-display">
+      <div class="pin-dot" id="dot-0"></div><div class="pin-dot" id="dot-1"></div>
+      <div class="pin-dot" id="dot-2"></div><div class="pin-dot" id="dot-3"></div>
+    </div>
+    <p id="pin-error" style="text-align:center;color:var(--danger);font-size:.85rem;min-height:20px;"></p>
+    <div class="pin-keypad">
+      <div class="pin-key" onclick="addPin('1')">1</div><div class="pin-key" onclick="addPin('2')">2</div><div class="pin-key" onclick="addPin('3')">3</div>
+      <div class="pin-key" onclick="addPin('4')">4</div><div class="pin-key" onclick="addPin('5')">5</div><div class="pin-key" onclick="addPin('6')">6</div>
+      <div class="pin-key" onclick="addPin('7')">7</div><div class="pin-key" onclick="addPin('8')">8</div><div class="pin-key" onclick="addPin('9')">9</div>
+      <div class="pin-key delete" onclick="deletePin()">⌫</div><div class="pin-key" onclick="addPin('0')">0</div><div class="pin-key" onclick="submitPin()">✔</div>
+    </div>
   </div>
+</div>
 
-  <iframe
-    id="app-frame"
-    src="https://script.google.com/macros/s/AKfycbxacDsvC0xDiGjz46HeviOTxvMs-As7T4jewfVHCDHaF6v473R4D8M_Xdkt8N787DiO/exec"
-    allow="camera; microphone"
-    onload="ocultarLoader()"
-    onerror="mostrarError()">
-  </iframe>
+<!-- PANEL FORMADOR -->
+<div id="screen-formador" class="screen">
+  <div class="card">
+    <div class="card-header"><div class="logo">📋</div><h1>Panel del Formador</h1></div>
+    <div style="display:flex;gap:6px;margin-bottom:20px;">
+      <button class="btn btn-primary btn-sm" onclick="showTab('tab-nueva')" id="tab-btn-nueva">+ Nueva Formación</button>
+      <button class="btn btn-outline btn-sm" onclick="showTab('tab-historial')" id="tab-btn-historial">📂 Historial</button>
+    </div>
+    <div id="tab-nueva">
+      <div class="form-group"><label>FECHA</label><input type="date" id="f-fecha"></div>
+      <div class="form-group"><label>TÍTULO DEL CURSO</label><input type="text" id="f-titulo" placeholder="Ej: Manipulación de alimentos"></div>
+      <div class="form-group"><label>DESCRIPCIÓN</label><textarea id="f-descripcion" placeholder="Descripción breve..."></textarea></div>
+      <div class="form-group"><label>INSTRUCTOR</label><input type="text" id="f-instructor" placeholder="Nombre completo"></div>
+      <div class="form-group">
+        <label>VENUES CUBIERTOS</label>
+        <div class="venues-wrapper" id="venues-wrapper">
+          <div class="venues-trigger" id="venues-trigger" onclick="toggleVenuesDropdown()">
+            <span id="venues-trigger-text" style="color:var(--text-muted)">Selecciona venues...</span>
+            <span class="arrow">▼</span>
+          </div>
+          <div class="venues-dropdown" id="venues-dropdown">
+            <label class="venue-option todos"><input type="checkbox" id="chk-todos" onchange="toggleTodosVenues(this)"> Todos los venues</label>
+            <div id="venues-opciones"></div>
+          </div>
+        </div>
+        <div class="venue-chips" id="venue-chips"></div>
+      </div>
+      <div class="form-group"><label>NOTAS</label><input type="text" id="f-notas" placeholder="Opcional"></div>
+      <div class="form-group"><label>ENLACE ADJUNTOS</label><input type="url" id="f-enlace" placeholder="https://drive.google.com/..."></div>
+      <button class="btn btn-primary" onclick="crearFormacion()" id="btn-crear">✅ Crear Formación y Abrir Firmas</button>
+      <hr class="divider">
+      <button class="btn btn-outline" onclick="cerrarSesion()">🔒 Cerrar Sesión</button>
+    </div>
+    <div id="tab-historial" style="display:none;">
+      <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:12px;">Últimas formaciones registradas</p>
+      <div id="historial-container" class="historial-list"><p style="color:var(--text-muted);text-align:center;padding:20px;">Cargando...</p></div>
+      <hr class="divider">
+      <button class="btn btn-outline" onclick="cerrarSesion()">🔒 Cerrar Sesión</button>
+    </div>
+  </div>
+</div>
 
-  <script>
-    function ocultarLoader() {
-      const loader = document.getElementById('loader');
-      loader.style.opacity = '0';
-      setTimeout(() => loader.style.display = 'none', 400);
+<!-- KIOSCO -->
+<div id="screen-kiosco" class="screen">
+  <div class="kiosco-header">
+    <h2 id="kiosco-titulo">📚 Nombre del Curso</h2>
+    <div class="sub" id="kiosco-instructor">👤 Instructor</div>
+    <div class="sub" id="kiosco-venues" style="font-size:.78rem;opacity:.75;"></div>
+  </div>
+  <div class="card">
+    <div class="firm-count"><div class="num" id="firma-count">0</div><div>trabajador(es) han firmado esta sesión</div></div>
+    <div class="form-group search-wrapper">
+      <label>🔍 BUSCA POR DNI O NOMBRE</label>
+      <input type="text" id="k-dni" placeholder="Empieza a escribir..." oninput="buscarTrabajador(this.value)" autocomplete="off">
+      <div class="autocomplete-list" id="autocomplete-list" style="display:none;"></div>
+    </div>
+    <div class="form-group"><label>NOMBRE DEL TRABAJADOR</label><input type="text" id="k-nombre" placeholder="Se autocompleta al seleccionar" readonly style="background:var(--surface);cursor:default;"></div>
+    <label style="display:block;margin-bottom:8px;font-size:.82rem;color:var(--text-muted);font-weight:600;">✍️ ÁREA DE FIRMA</label>
+    <div id="canvas-container"><canvas id="signature-canvas" height="180"></canvas><div class="canvas-label" id="canvas-label">Firma aquí con el dedo</div></div>
+    <div class="flex-row">
+      <button class="btn btn-outline btn-sm" onclick="limpiarFirma()" style="width:auto;flex:0 0 auto;">🗑️ Borrar</button>
+      <button class="btn btn-success" onclick="confirmarFirma()" id="btn-confirmar">✅ Confirmar Firma</button>
+    </div>
+    <hr class="divider">
+    <div><p style="font-size:.82rem;color:var(--text-muted);margin-bottom:8px;font-weight:600;">FIRMAS DE ESTA SESIÓN</p><div id="lista-firmas-sesion"></div></div>
+    <hr class="divider">
+    <button class="btn btn-danger" onclick="solicitarCierre()">🔒 Finalizar Sesión</button>
+  </div>
+</div>
+
+<!-- MODAL ÉXITO -->
+<div class="overlay" id="overlay-exito">
+  <div class="modal"><div class="check">✅</div><h3>¡Firma Registrada!</h3><p id="modal-nombre-trabajador"></p><p class="countdown" id="modal-countdown">Siguiente trabajador en 3...</p></div>
+</div>
+
+<!-- MODAL CIERRE -->
+<div class="overlay" id="overlay-cierre">
+  <div class="modal" style="max-width:360px;width:92vw;">
+    <h3>🔒 Verificar Identidad</h3><p style="margin-bottom:16px;color:var(--text-muted);">Introduce el PIN para finalizar</p>
+    <div class="pin-display" id="cierre-pin-display">
+      <div class="pin-dot" id="cdot-0"></div><div class="pin-dot" id="cdot-1"></div>
+      <div class="pin-dot" id="cdot-2"></div><div class="pin-dot" id="cdot-3"></div>
+    </div>
+    <p id="cierre-pin-error" style="color:var(--danger);font-size:.85rem;min-height:20px;text-align:center;"></p>
+    <div class="pin-keypad">
+      <div class="pin-key" onclick="addCierrePin('1')">1</div><div class="pin-key" onclick="addCierrePin('2')">2</div><div class="pin-key" onclick="addCierrePin('3')">3</div>
+      <div class="pin-key" onclick="addCierrePin('4')">4</div><div class="pin-key" onclick="addCierrePin('5')">5</div><div class="pin-key" onclick="addCierrePin('6')">6</div>
+      <div class="pin-key" onclick="addCierrePin('7')">7</div><div class="pin-key" onclick="addCierrePin('8')">8</div><div class="pin-key" onclick="addCierrePin('9')">9</div>
+      <div class="pin-key delete" onclick="deleteCierrePin()">⌫</div><div class="pin-key" onclick="addCierrePin('0')">0</div><div class="pin-key" onclick="submitCierrePin()">✔</div>
+    </div>
+    <button class="btn btn-outline mt-8" onclick="cancelarCierre()">Cancelar</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── CONFIGURACIÓN ──────────────────────────────────────────
+const API = 'https://script.google.com/macros/s/AKfycbxacDsvC0xDiGjz46HeviOTxvMs-As7T4jewfVHCDHaF6v473R4D8M_Xdkt8N787DiO/exec';
+
+// ── HELPERS API ────────────────────────────────────────────
+async function apiGet(action, params = {}) {
+  const url = new URL(API);
+  url.searchParams.set('action', action);
+  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+  const res = await fetch(url.toString(), { redirect: 'follow' });
+  return res.json();
+}
+
+async function apiPost(action, datos) {
+  const res = await fetch(API, {
+    method: 'POST',
+    body: JSON.stringify({ action, datos }),
+    redirect: 'follow'
+  });
+  return res.json();
+}
+
+// ── ESTADO GLOBAL ──────────────────────────────────────────
+let pinActual = '', cierrePinActual = '';
+let formacionActual = null;
+let trabajadores = [], firmasSesion = [];
+let signaturePad = null;
+
+// ── UTILIDADES UI ──────────────────────────────────────────
+function showScreen(id) { document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); document.getElementById('screen-' + id).classList.add('active'); }
+function showToast(msg, type='success') { const t = document.getElementById('toast'); t.textContent = msg; t.className = 'toast ' + type; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3500); }
+function showTab(id) {
+  ['tab-nueva','tab-historial'].forEach(t => document.getElementById(t).style.display = t===id?'block':'none');
+  document.getElementById('tab-btn-nueva').className    = id==='tab-nueva'     ? 'btn btn-primary btn-sm' : 'btn btn-outline btn-sm';
+  document.getElementById('tab-btn-historial').className= id==='tab-historial' ? 'btn btn-primary btn-sm' : 'btn btn-outline btn-sm';
+  if (id==='tab-historial') cargarHistorial();
+}
+function updatePinDots(pin, prefix) { for(let i=0;i<4;i++) document.getElementById(prefix+i)?.classList.toggle('filled', i<pin.length); }
+
+// ── PIN LOGIN ──────────────────────────────────────────────
+function addPin(d) { if(pinActual.length>=4) return; pinActual+=d; updatePinDots(pinActual,'dot-'); if(pinActual.length===4) setTimeout(submitPin,200); }
+function deletePin() { pinActual=pinActual.slice(0,-1); updatePinDots(pinActual,'dot-'); }
+async function submitPin() {
+  try {
+    const res = await apiGet('verificarPIN', { pin: pinActual });
+    if (res.ok) {
+      pinActual=''; updatePinDots('','dot-');
+      document.getElementById('pin-error').textContent='';
+      await cargarDatosReferencia();
+      showScreen('formador'); setFechaHoy();
+    } else {
+      document.getElementById('pin-error').textContent='❌ PIN incorrecto';
+      const d = document.getElementById('pin-display');
+      d.style.transform='translateX(-8px)'; setTimeout(()=>d.style.transform='translateX(8px)',80); setTimeout(()=>d.style.transform='translateX(0)',160);
+      pinActual=''; updatePinDots('','dot-');
     }
+  } catch(e) { showToast('Error de conexión: '+e.message,'error'); pinActual=''; updatePinDots('','dot-'); }
+}
 
-    function mostrarError() {
-      const loader = document.getElementById('loader');
-      loader.innerHTML = `
-        <div style="font-size:2.5rem;margin-bottom:16px;">⚠️</div>
-        <p style="color:#ea4335;font-size:1rem;font-weight:600;">Error al cargar la aplicación</p>
-        <p style="margin-top:8px;color:#8f95b2;font-size:.85rem;">Comprueba tu conexión e inténtalo de nuevo</p>
-        <button onclick="location.reload()"
-          style="margin-top:20px;padding:10px 24px;background:#1a73e8;color:#fff;
-                 border:none;border-radius:8px;font-size:.95rem;cursor:pointer;">
-          🔄 Reintentar
-        </button>
-      `;
-      loader.style.opacity = '1';
-    }
+function setFechaHoy() { const h=new Date(); document.getElementById('f-fecha').value=`${h.getFullYear()}-${String(h.getMonth()+1).padStart(2,'0')}-${String(h.getDate()).padStart(2,'0')}`; }
 
-    // Timeout de seguridad: si tras 15s no carga, mostrar error
-    setTimeout(() => {
-      const loader = document.getElementById('loader');
-      if (loader.style.display !== 'none') mostrarError();
-    }, 15000);
-  </script>
+// ── DATOS DE REFERENCIA ────────────────────────────────────
+async function cargarDatosReferencia() {
+  try {
+    const data = await apiGet('getDatosReferencia');
+    trabajadores = data.trabajadores || [];
+    const venues = data.venues || [];
+    const cont = document.getElementById('venues-opciones');
+    cont.innerHTML = venues.map(v => `<label class="venue-option"><input type="checkbox" class="chk-venue" value="${v}" onchange="actualizarVenuesSeleccionados()"> ${v}</label>`).join('');
+    if (data.error) showToast('⚠️ '+data.error,'error');
+  } catch(e) { showToast('Error cargando datos: '+e.message,'error'); }
+}
 
+// ── CREAR FORMACIÓN ────────────────────────────────────────
+async function crearFormacion() {
+  const titulo      = document.getElementById('f-titulo').value.trim();
+  const descripcion = document.getElementById('f-descripcion').value.trim();
+  const instructor  = document.getElementById('f-instructor').value.trim();
+  const fecha       = document.getElementById('f-fecha').value;
+  const notas       = document.getElementById('f-notas').value.trim();
+  const enlace      = document.getElementById('f-enlace').value.trim();
+  const venues      = getVenuesSeleccionados();
+  if (!titulo||!instructor||!fecha) { showToast('⚠️ Completa los campos obligatorios','error'); return; }
+  const btn = document.getElementById('btn-crear');
+  btn.innerHTML='<span class="loader"></span> Guardando...'; btn.disabled=true;
+  try {
+    const res = await apiPost('crearFormacion', { titulo, descripcion, instructor, venues, fecha, notas, enlaceAdjunto: enlace });
+    btn.innerHTML='✅ Crear Formación y Abrir Firmas'; btn.disabled=false;
+    if (res.success) { formacionActual={id:res.id,titulo,instructor,venues,fecha}; firmasSesion=[]; abrirKiosco(); }
+    else showToast('Error: '+res.error,'error');
+  } catch(e) { btn.innerHTML='✅ Crear Formación y Abrir Firmas'; btn.disabled=false; showToast('Error: '+e.message,'error'); }
+}
+
+// ── HISTORIAL ──────────────────────────────────────────────
+async function cargarHistorial() {
+  const cont = document.getElementById('historial-container');
+  cont.innerHTML='<p style="text-align:center;color:var(--text-muted);padding:16px;">Cargando...</p>';
+  try {
+    const res = await apiGet('getFormaciones');
+    const lista = res.formaciones || [];
+    if (!lista.length) { cont.innerHTML='<p style="text-align:center;color:var(--text-muted);padding:16px;">Sin formaciones</p>'; return; }
+    cont.innerHTML = lista.reverse().slice(0,20).map(f=>`
+      <div style="border-bottom:1px solid var(--border);padding:12px 0;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <strong style="font-size:.9rem;">${f.titulo}</strong>
+          <span class="badge badge-${(f.estado||'').toLowerCase()}">${f.estado||''}</span>
+        </div>
+        <div style="font-size:.8rem;color:var(--text-muted);margin-top:4px;">
+          📅 ${f.fecha} &nbsp;|&nbsp; 👤 ${f.instructor}${f.venues?' &nbsp;|&nbsp; 📍 '+f.venues:''}
+        </div>
+        <div style="font-size:.75rem;color:var(--primary);margin-top:2px;">ID: ${f.id}</div>
+      </div>`).join('');
+  } catch(e) { cont.innerHTML='<p style="color:var(--danger)">Error al cargar</p>'; }
+}
+
+// ── MULTI-SELECT VENUES ────────────────────────────────────
+function toggleVenuesDropdown() { const t=document.getElementById('venues-trigger'),d=document.getElementById('venues-dropdown'),o=d.classList.toggle('open'); t.classList.toggle('open',o); }
+function toggleTodosVenues(chk) { document.querySelectorAll('.chk-venue').forEach(c=>c.checked=chk.checked); actualizarVenuesSeleccionados(); }
+function getVenuesSeleccionados() { return Array.from(document.querySelectorAll('.chk-venue:checked')).map(c=>c.value); }
+function actualizarVenuesSeleccionados() {
+  const sel=getVenuesSeleccionados(), total=document.querySelectorAll('.chk-venue').length;
+  const todos=document.getElementById('chk-todos');
+  todos.checked=sel.length===total&&total>0; todos.indeterminate=sel.length>0&&sel.length<total;
+  const tr=document.getElementById('venues-trigger-text');
+  tr.textContent=sel.length===0?'Selecciona venues...':(sel.length===total?`✓ Todos los venues (${total})`:`${sel.length} venue(s) seleccionado(s)`);
+  tr.style.color=sel.length===0?'var(--text-muted)':'var(--text)';
+  document.getElementById('venue-chips').innerHTML=sel.map(v=>`<span class="venue-chip">${v}<button onclick="deseleccionarVenue('${v}')" title="Quitar">×</button></span>`).join('');
+}
+function deseleccionarVenue(v) { const c=document.querySelector(`.chk-venue[value="${v}"]`); if(c){c.checked=false;actualizarVenuesSeleccionados();} }
+document.addEventListener('click', e => {
+  if (!e.target.closest('#venues-wrapper')) { document.getElementById('venues-dropdown').classList.remove('open'); document.getElementById('venues-trigger').classList.remove('open'); }
+  if (!e.target.closest('.search-wrapper')) { const l=document.getElementById('autocomplete-list'); if(l) l.style.display='none'; }
+});
+
+// ── KIOSCO ─────────────────────────────────────────────────
+function abrirKiosco() {
+  document.getElementById('kiosco-titulo').textContent='📚 '+formacionActual.titulo;
+  document.getElementById('kiosco-instructor').textContent='👤 '+formacionActual.instructor;
+  const vd=document.getElementById('kiosco-venues');
+  vd.textContent=formacionActual.venues&&formacionActual.venues.length?'📍 '+(Array.isArray(formacionActual.venues)?formacionActual.venues.join(' · '):formacionActual.venues):'';
+  actualizarConteoFirmas(); limpiarFormKiosco(); showScreen('kiosco'); setTimeout(inicializarSignaturePad,100);
+}
+function inicializarSignaturePad() {
+  const canvas=document.getElementById('signature-canvas'), container=document.getElementById('canvas-container');
+  canvas.width=container.clientWidth; canvas.height=180;
+  if(signaturePad) signaturePad.clear();
+  else { signaturePad=new SignaturePad(canvas,{backgroundColor:'rgb(255,255,255)',penColor:'rgb(20,40,120)',minWidth:1.5,maxWidth:3}); signaturePad.addEventListener('beginStroke',()=>document.getElementById('canvas-label').style.display='none'); }
+}
+function limpiarFirma() { if(signaturePad) signaturePad.clear(); document.getElementById('canvas-label').style.display='block'; }
+function limpiarFormKiosco() { document.getElementById('k-dni').value=''; document.getElementById('k-nombre').value=''; document.getElementById('autocomplete-list').style.display='none'; if(signaturePad) signaturePad.clear(); document.getElementById('canvas-label').style.display='block'; }
+function actualizarConteoFirmas() { document.getElementById('firma-count').textContent=firmasSesion.length; }
+
+// ── BUSCADOR ───────────────────────────────────────────────
+function buscarTrabajador(query) {
+  const list=document.getElementById('autocomplete-list');
+  if(!query||query.length<2){list.style.display='none';return;}
+  const q=query.toLowerCase(), matches=trabajadores.filter(t=>t.dni.toLowerCase().includes(q)||t.nombre.toLowerCase().includes(q)).slice(0,8);
+  if(!matches.length){list.style.display='none';return;}
+  list.innerHTML=matches.map(t=>`<div class="autocomplete-item" onclick="seleccionarTrabajador('${t.dni}','${t.nombre.replace(/'/g,"\\'")}')"><strong>${t.dni}</strong><span>${t.nombre}</span></div>`).join('');
+  list.style.display='block';
+}
+function seleccionarTrabajador(dni, nombre) { document.getElementById('k-dni').value=dni; document.getElementById('k-nombre').value=nombre; document.getElementById('autocomplete-list').style.display='none'; }
+
+// ── CONFIRMAR FIRMA ────────────────────────────────────────
+async function confirmarFirma() {
+  const dni=document.getElementById('k-dni').value.trim(), nombre=document.getElementById('k-nombre').value.trim();
+  if(!dni||!nombre){showToast('⚠️ Selecciona un trabajador primero','error');return;}
+  if(!signaturePad||signaturePad.isEmpty()){showToast('✍️ El trabajador debe firmar primero','error');return;}
+  const firmaBase64=signaturePad.toDataURL('image/png');
+  const btn=document.getElementById('btn-confirmar');
+  btn.innerHTML='<span class="loader"></span> Guardando...'; btn.disabled=true;
+  try {
+    const res=await apiPost('guardarFirma',{idFormacion:formacionActual.id,dni,nombre,firmaBase64});
+    btn.innerHTML='✅ Confirmar Firma'; btn.disabled=false;
+    if(res.success){firmasSesion.push({dni,nombre,hora:new Date().toLocaleTimeString()}); actualizarConteoFirmas(); renderizarFirmasSesion(); mostrarModalExito(nombre); limpiarFormKiosco();}
+    else showToast('Error: '+res.error,'error');
+  } catch(e){btn.innerHTML='✅ Confirmar Firma'; btn.disabled=false; showToast('Error: '+e.message,'error');}
+}
+
+// ── MODAL ÉXITO ────────────────────────────────────────────
+function mostrarModalExito(nombre) {
+  document.getElementById('modal-nombre-trabajador').textContent=nombre+' ha firmado correctamente';
+  document.getElementById('overlay-exito').classList.add('active');
+  let seg=3; const cd=document.getElementById('modal-countdown'); cd.textContent=`Siguiente trabajador en ${seg}...`;
+  const iv=setInterval(()=>{seg--;if(seg<=0){clearInterval(iv);document.getElementById('overlay-exito').classList.remove('active');}else cd.textContent=`Siguiente trabajador en ${seg}...`;},1000);
+}
+function renderizarFirmasSesion() {
+  const c=document.getElementById('lista-firmas-sesion');
+  c.innerHTML=firmasSesion.length?firmasSesion.map(f=>`<div class="hist-item"><span class="dni-badge">${f.dni}</span><span class="name">${f.nombre}</span><span class="hora">${f.hora}</span></div>`).join(''):'<p style="color:var(--text-muted);font-size:.82rem;">Sin firmas aún.</p>';
+}
+
+// ── CIERRE CON PIN ─────────────────────────────────────────
+function solicitarCierre(){cierrePinActual='';updatePinDots('','cdot-');document.getElementById('cierre-pin-error').textContent='';document.getElementById('overlay-cierre').classList.add('active');}
+function cancelarCierre(){document.getElementById('overlay-cierre').classList.remove('active');}
+function addCierrePin(d){if(cierrePinActual.length>=4)return;cierrePinActual+=d;updatePinDots(cierrePinActual,'cdot-');if(cierrePinActual.length===4)setTimeout(submitCierrePin,200);}
+function deleteCierrePin(){cierrePinActual=cierrePinActual.slice(0,-1);updatePinDots(cierrePinActual,'cdot-');}
+async function submitCierrePin() {
+  try {
+    const res=await apiGet('verificarPIN',{pin:cierrePinActual});
+    if(res.ok){
+      document.getElementById('overlay-cierre').classList.remove('active');
+      try { await apiGet('finalizarFormacion',{id:formacionActual.id}); showToast('✅ Sesión finalizada','success'); } catch(e){}
+      formacionActual=null; firmasSesion=[]; showScreen('formador'); showTab('tab-historial');
+    } else { document.getElementById('cierre-pin-error').textContent='❌ PIN incorrecto'; cierrePinActual=''; updatePinDots('','cdot-'); }
+  } catch(e){showToast('Error: '+e.message,'error');}
+}
+function cerrarSesion(){pinActual='';updatePinDots('','dot-');document.getElementById('pin-error').textContent='';showScreen('pin');}
+
+window.onload = () => renderizarFirmasSesion();
+</script>
 </body>
 </html>
