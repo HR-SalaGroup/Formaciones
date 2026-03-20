@@ -686,6 +686,44 @@
     .participante-item:last-child { border-bottom: none; }
     .participante-item .p-dni { color: var(--primary); font-family: monospace; }
     .no-participantes { font-size: 0.8rem; color: var(--text-muted); font-style: italic; }
+
+    /* Estilos Modal Edición Formación */
+    .modal-edicion {
+      max-width: 500px !important;
+      width: 95vw;
+      max-height: 90vh;
+      overflow-y: auto;
+      text-align: left !important;
+      padding: 24px !important;
+    }
+    .modal-edicion h3 { font-size: 1.1rem; margin-bottom: 20px; color: var(--primary); display:flex; align-items:center; gap:8px; }
+    .edit-actions { display:flex; gap:10px; margin-top:20px; }
+    .edit-actions .btn { margin-top:0; }
+    .hist-item-editable {
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .hist-item-editable:hover {
+      background: rgba(255,255,255,0.03);
+      border-radius: 8px;
+    }
+    .btn-edit-hist {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      border-radius: 8px;
+      padding: 4px 10px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: all .2s;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .btn-edit-hist:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+      background: rgba(26,115,232,0.08);
+    }
   </style>
 </head>
 
@@ -868,6 +906,53 @@
     </div>
   </div>
 
+  <!-- MODAL EDICIÓN FORMACIÓN -->
+  <div class="overlay" id="overlay-edicion">
+    <div class="modal modal-edicion">
+      <h3>✏️ Editar Formación</h3>
+      <input type="hidden" id="edit-id">
+      <div class="form-group">
+        <label>FECHA</label>
+        <input type="date" id="edit-fecha">
+      </div>
+      <div class="form-group">
+        <label>TÍTULO DEL CURSO</label>
+        <input type="text" id="edit-titulo" placeholder="Título del curso">
+      </div>
+      <div class="form-group">
+        <label>DESCRIPCIÓN</label>
+        <textarea id="edit-descripcion" placeholder="Descripción breve..."></textarea>
+      </div>
+      <div class="form-group">
+        <label>INSTRUCTOR</label>
+        <input type="text" id="edit-instructor" placeholder="Nombre completo">
+      </div>
+      <div class="form-group">
+        <label>VENUES</label>
+        <input type="text" id="edit-venues" placeholder="Venue1, Venue2...">
+      </div>
+      <div class="form-group">
+        <label>NOTAS</label>
+        <input type="text" id="edit-notas" placeholder="Opcional">
+      </div>
+      <div class="form-group">
+        <label>ENLACE ADJUNTOS</label>
+        <input type="url" id="edit-enlace" placeholder="https://drive.google.com/...">
+      </div>
+      <div class="form-group">
+        <label>ESTADO</label>
+        <select id="edit-estado">
+          <option value="Activa">Activa</option>
+          <option value="Finalizada">Finalizada</option>
+        </select>
+      </div>
+      <div class="edit-actions">
+        <button class="btn btn-primary" onclick="guardarEdicionFormacion()" id="btn-guardar-edicion">💾 Guardar Cambios</button>
+        <button class="btn btn-outline" onclick="cerrarModalEdicion()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
   <div class="toast" id="toast"></div>
 
   <script>
@@ -964,30 +1049,33 @@
     }
 
     // ── HISTORIAL ──────────────────────────────────────────────
+    let _historialCache = [];
     async function cargarHistorial() {
       const cont = document.getElementById('historial-container');
       cont.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:16px;">Cargando...</p>';
       try {
         const res = await apiGet('getFormaciones');
         const lista = res.formaciones || [];
-        if (!lista.length) { cont.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:16px;">Sin formaciones</p>'; return; }
+        _historialCache = lista;
+        if (!lista.length) { cont.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:16px;">Sin formaciones registradas</p>'; return; }
+        
         cont.innerHTML = lista.reverse().slice(0, 20).map(f => `
-      <div onclick="verDetalleFormacion('${f.titulo.replace(/'/g, "\\'")}')" 
-           style="border-bottom:1px solid var(--border);padding:12px 0;cursor:pointer;transition:background 0.2s;"
-           onmouseover="this.style.background='rgba(255,255,255,0.03)'"
-           onmouseout="this.style.background='transparent'">
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <strong style="font-size:.9rem;">${f.titulo}</strong>
-          <span class="badge badge-${(f.estado || '').toLowerCase()}">${f.estado || ''}</span>
-        </div>
-        <div style="font-size:.8rem;color:var(--text-muted);margin-top:4px;">
-          📅 ${f.fecha} &nbsp;|&nbsp; 👤 ${f.instructor}${f.venues ? ' &nbsp;|&nbsp; 📍 ' + f.venues : ''}
-        </div>
-        <div style="font-size:.75rem;color:var(--primary);margin-top:2px;display:flex;justify-content:space-between;">
-           <span>ID: ${f.id}</span>
-           <span style="font-size:0.7rem;opacity:0.6;">Ver todos los participantes ➔</span>
-        </div>
-      </div>`).join('');
+          <div style="border-bottom:1px solid var(--border);padding:12px 0;">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+              <strong style="font-size:.9rem;flex:1;cursor:pointer;" onclick="verDetalleFormacion('${f.titulo.replace(/'/g, "&apos;")}')">${f.titulo}</strong>
+              <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">
+                <span class="badge badge-${(f.estado || '').toLowerCase()}">${f.estado || ''}</span>
+                <button class="btn-edit-hist" onclick="abrirEdicionFormacion('${f.id}')" title="Editar formación">✏️ Editar</button>
+              </div>
+            </div>
+            <div style="font-size:.8rem;color:var(--text-muted);margin-top:4px;cursor:pointer;" onclick="verDetalleFormacion('${f.titulo.replace(/'/g, "&apos;")}')">
+              📅 ${f.fecha} &nbsp;|&nbsp; 👤 ${f.instructor}${f.venues ? ' &nbsp;|&nbsp; 📍 ' + f.venues : ''}
+            </div>
+            <div style="font-size:.75rem;color:var(--primary);margin-top:2px;display:flex;justify-content:space-between;cursor:pointer;" onclick="verDetalleFormacion('${f.titulo.replace(/'/g, "&apos;")}')">
+               <span>ID: ${f.id}</span>
+               <span style="font-size:0.7rem;opacity:0.6;">👥 Ver participantes ➔</span>
+            </div>
+          </div>`).join('');
       } catch (e) { cont.innerHTML = '<p style="color:var(--danger)">Error al cargar</p>'; }
     }
 
@@ -1048,6 +1136,71 @@
 
     function cerrarModalDetalle() {
       document.getElementById('overlay-detalle').classList.remove('active');
+    }
+
+    // ── EDICIÓN DE FORMACIÓN ───────────────────────────────────
+    // Caché de formaciones cargadas para rellenar el modal sin petición extra
+    
+    function abrirEdicionFormacion(id) {
+      const formacion = _historialCache.find(f => f.id === id);
+      if (!formacion) { showToast('No se encontraron datos de la formación', 'error'); return; }
+
+      // Convertir fecha a formato YYYY-MM-DD si viene como dd/MM/yyyy
+      let fechaVal = formacion.fecha || '';
+      if (/^\d{2}\/\d{2}\/\d{4}$/.test(fechaVal)) {
+        const [dd, mm, yyyy] = fechaVal.split('/');
+        fechaVal = `${yyyy}-${mm}-${dd}`;
+      }
+
+      document.getElementById('edit-id').value         = formacion.id;
+      document.getElementById('edit-fecha').value      = fechaVal;
+      document.getElementById('edit-titulo').value     = formacion.titulo || '';
+      document.getElementById('edit-descripcion').value = formacion.descripcion || '';
+      document.getElementById('edit-instructor').value = formacion.instructor || '';
+      document.getElementById('edit-venues').value     = formacion.venues || '';
+      document.getElementById('edit-notas').value      = formacion.notas || '';
+      document.getElementById('edit-enlace').value     = formacion.enlaceAdjunto || '';
+      document.getElementById('edit-estado').value     = formacion.estado || 'Activa';
+
+      document.getElementById('overlay-edicion').classList.add('active');
+    }
+
+    function cerrarModalEdicion() {
+      document.getElementById('overlay-edicion').classList.remove('active');
+    }
+
+    async function guardarEdicionFormacion() {
+      const id         = document.getElementById('edit-id').value;
+      const fecha      = document.getElementById('edit-fecha').value;
+      const titulo     = document.getElementById('edit-titulo').value.trim();
+      const descripcion = document.getElementById('edit-descripcion').value.trim();
+      const instructor = document.getElementById('edit-instructor').value.trim();
+      const venues     = document.getElementById('edit-venues').value.trim();
+      const notas      = document.getElementById('edit-notas').value.trim();
+      const enlace     = document.getElementById('edit-enlace').value.trim();
+      const estado     = document.getElementById('edit-estado').value;
+
+      if (!titulo || !instructor || !fecha) {
+        showToast('⚠️ Título, instructor y fecha son obligatorios', 'error'); return;
+      }
+
+      const btn = document.getElementById('btn-guardar-edicion');
+      btn.innerHTML = '<span class="loader"></span> Guardando...'; btn.disabled = true;
+
+      try {
+        const res = await apiPost('actualizarFormacion', { id, fecha, titulo, descripcion, instructor, venues, notas, enlaceAdjunto: enlace, estado });
+        btn.innerHTML = '💾 Guardar Cambios'; btn.disabled = false;
+        if (res.success) {
+          showToast('✅ Formación actualizada correctamente', 'success');
+          cerrarModalEdicion();
+          cargarHistorial(); // Recargar historial con los datos actualizados
+        } else {
+          showToast('Error: ' + (res.error || 'desconocido'), 'error');
+        }
+      } catch (e) {
+        btn.innerHTML = '💾 Guardar Cambios'; btn.disabled = false;
+        showToast('Error de conexión: ' + e.message, 'error');
+      }
     }
 
     // ── MULTI-SELECT VENUES ────────────────────────────────────
