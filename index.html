@@ -5,21 +5,23 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <title>Registro de Formaciones</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
   <style>
     :root {
-      --primary: #1a73e8;
-      --primary-dark: #1557b0;
-      --success: #34a853;
-      --danger: #ea4335;
-      --warning: #fbbc04;
-      --bg: #0f1117;
-      --surface: #1e2130;
-      --surface2: #262b3d;
-      --border: #2e3452;
-      --text: #e8eaf6;
-      --text-muted: #8f95b2;
-      --radius: 14px;
+      --primary: #6366f1;
+      --primary-dark: #4f46e5;
+      --success: #10b981;
+      --danger: #f43f5e;
+      --warning: #fbbf24;
+      --bg: #0a0c10;
+      --surface: rgba(30, 41, 59, 0.7);
+      --surface2: rgba(51, 65, 85, 0.4);
+      --border: rgba(148, 163, 184, 0.1);
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --radius: 20px;
+      --blur: blur(16px);
     }
 
     * {
@@ -29,13 +31,14 @@
     }
 
     body {
-      font-family: 'Segoe UI', system-ui, sans-serif;
-      background: var(--bg);
+      font-family: 'Outfit', sans-serif;
+      background: radial-gradient(circle at top left, #1e1b4b 0%, #0a0c10 40%);
       color: var(--text);
       min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
+      padding: 10px;
     }
 
     .screen {
@@ -71,6 +74,9 @@
       border: 1px solid var(--border);
       border-radius: var(--radius);
       padding: 32px;
+      backdrop-filter: var(--blur);
+      -webkit-backdrop-filter: var(--blur);
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
     }
 
     .card-header {
@@ -152,13 +158,14 @@
     }
 
     .btn-primary {
-      background: var(--primary);
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
       color: #fff;
+      box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.3);
     }
 
     .btn-primary:hover {
-      background: var(--primary-dark);
-      transform: translateY(-1px);
+      transform: translateY(-2px);
+      box-shadow: 0 20px 25px -5px rgba(99, 102, 241, 0.4);
     }
 
     .btn-success {
@@ -247,26 +254,35 @@
 
     .badge {
       display: inline-block;
-      padding: 3px 10px;
-      border-radius: 20px;
-      font-size: .75rem;
+      padding: 4px 12px;
+      border-radius: 99px;
+      font-size: .7rem;
       font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
 
     .badge-activa {
-      background: #1a73e820;
-      color: var(--primary);
-      border: 1px solid var(--primary);
+      background: rgba(99, 102, 241, 0.15);
+      color: #818cf8;
+      border: 1px solid rgba(129, 140, 248, 0.2);
     }
 
     .badge-finalizada {
-      background: #34a85320;
-      color: var(--success);
-      border: 1px solid var(--success);
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(52, 211, 153, 0.2);
     }
 
+    .hist-item-hover:hover {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      padding-left: 8px;
+    }
+    .hist-item-hover { transition: all 0.2s ease; }
+
     .kiosco-header {
-      background: linear-gradient(135deg, #1a73e8, #0d47a1);
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
       border-radius: var(--radius);
       padding: 20px;
       text-align: center;
@@ -1055,28 +1071,38 @@
       cont.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:16px;">Cargando...</p>';
       try {
         const res = await apiGet('getFormaciones');
-        const lista = res.formaciones || [];
+        let lista = res.formaciones || [];
+        
+        // Ordenar por fecha (descendente: más reciente primero)
+        lista.sort((a, b) => {
+          const dateA = a.fecha ? a.fecha.split('/').reverse().join('') : '00000000';
+          const dateB = b.fecha ? b.fecha.split('/').reverse().join('') : '00000000';
+          return dateB.localeCompare(dateA);
+        });
+        
         _historialCache = lista;
         if (!lista.length) { cont.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:16px;">Sin formaciones registradas</p>'; return; }
         
-        cont.innerHTML = lista.reverse().slice(0, 20).map(f => `
-          <div style="border-bottom:1px solid var(--border);padding:12px 0;">
+        cont.innerHTML = lista.slice(0, 20).map(f => `
+          <div style="border-bottom:1px solid var(--border);padding:14px 0;transition: background .2s;" class="hist-item-hover">
             <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
-              <strong style="font-size:.9rem;flex:1;cursor:pointer;" onclick="verDetalleFormacion('${f.titulo.replace(/'/g, "&apos;")}')">${f.titulo}</strong>
-              <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">
+              <strong style="font-size:1rem;flex:1;cursor:pointer;color:var(--text);" onclick="verDetalleFormacion('${f.titulo.replace(/'/g, "&apos;")}')">${f.titulo}</strong>
+              <div style="display:flex;gap:8px;align-items:center;flex-shrink:0;">
                 <span class="badge badge-${(f.estado || '').toLowerCase()}">${f.estado || ''}</span>
-                <button class="btn-edit-hist" onclick="abrirEdicionFormacion('${f.id}')" title="Editar formación">✏️ Editar</button>
+                <button class="btn-edit-hist" onclick="abrirEdicionFormacion('${f.id}')" title="Editar formación">✏️</button>
               </div>
             </div>
-            <div style="font-size:.8rem;color:var(--text-muted);margin-top:4px;cursor:pointer;" onclick="verDetalleFormacion('${f.titulo.replace(/'/g, "&apos;")}')">
-              📅 ${f.fecha} &nbsp;|&nbsp; 👤 ${f.instructor}${f.venues ? ' &nbsp;|&nbsp; 📍 ' + f.venues : ''}
+            <div style="font-size:.85rem;color:var(--text-muted);margin-top:6px;cursor:pointer;display:flex;align-items:center;gap:12px;" onclick="verDetalleFormacion('${f.titulo.replace(/'/g, "&apos;")}')">
+              <span>📅 <span style="color:var(--primary);">${f.fecha}</span></span>
+              <span>👤 ${f.instructor}</span>
+              ${f.venues ? '<span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">📍 ' + f.venues + '</span>' : ''}
             </div>
-            <div style="font-size:.75rem;color:var(--primary);margin-top:2px;display:flex;justify-content:space-between;cursor:pointer;" onclick="verDetalleFormacion('${f.titulo.replace(/'/g, "&apos;")}')">
-               <span>ID: ${f.id}</span>
-               <span style="font-size:0.7rem;opacity:0.6;">👥 Ver participantes ➔</span>
+            <div style="font-size:.75rem;color:var(--text-muted);margin-top:8px;display:flex;justify-content:space-between;cursor:pointer;opacity:0.8;" onclick="verDetalleFormacion('${f.titulo.replace(/'/g, "&apos;")}')">
+               <span># ${f.id}</span>
+               <span style="color:var(--primary);font-weight:600;">Ver detalles ➔</span>
             </div>
           </div>`).join('');
-      } catch (e) { cont.innerHTML = '<p style="color:var(--danger)">Error al cargar</p>'; }
+      } catch (e) { cont.innerHTML = '<p style="color:var(--danger)">Error al cargar historial</p>'; }
     }
 
     async function verDetalleFormacion(titulo) {
