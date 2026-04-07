@@ -846,7 +846,7 @@
             </select>
           </div>
           <div style="display:flex; gap:6px; width:100%; margin-top:10px;">
-            <button class="btn btn-outline btn-sm" style="flex:1" onclick="ordenarTrabajadores('apellido')">🔤 Apellido</button>
+            <button class="btn btn-outline btn-sm" style="flex:1" onclick="ordenarTrabajadores('nombre')">🔤 Nombre</button>
             <button class="btn btn-outline btn-sm" style="flex:1" onclick="ordenarTrabajadores('cursos')">📊 Cursos</button>
           </div>
         </div>
@@ -1365,7 +1365,7 @@
 
     // ── BUSCADOR DE TRABAJADORES (NUEVO) ──────────────────────
     let _workersData = [];
-    let _sortOrder = { key: 'apellido', desc: false };
+    let _sortOrder = { key: 'nombre', desc: false };
 
     async function cargarBuscadorTrabajadores() {
       const listCont = document.getElementById('worker-list');
@@ -1374,7 +1374,7 @@
         const res = await apiGet('getTrabajadoresConEstadisticas');
         if (res.success) {
           _workersData = res.trabajadores;
-          ordenarTrabajadores('apellido');
+          ordenarTrabajadores('nombre');
         } else {
           listCont.innerHTML = `<p style="color:var(--danger); padding:20px;">Error: ${res.error}</p>`;
         }
@@ -1392,8 +1392,8 @@
       if (_sortOrder.key === key) _sortOrder.desc = !_sortOrder.desc;
       else { _sortOrder.key = key; _sortOrder.desc = (key === 'cursos'); }
       _workersData.sort((a, b) => {
-        let valA = key === 'apellido' ? a.apellido.toLowerCase() : a.count;
-        let valB = key === 'apellido' ? b.apellido.toLowerCase() : b.count;
+        let valA = key === 'nombre' ? a.nombreCompleto.toLowerCase() : a.count;
+        let valB = key === 'nombre' ? b.nombreCompleto.toLowerCase() : b.count;
         return valA < valB ? (_sortOrder.desc ? 1 : -1) : (valA > valB ? (_sortOrder.desc ? -1 : 1) : 0);
       });
       filtrarTrabajadores();
