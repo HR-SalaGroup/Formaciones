@@ -784,11 +784,10 @@
         <div class="logo">📋</div>
         <h1>Panel del Formador</h1>
       </div>
-      <div style="display:flex;gap:6px;margin-bottom:20px;">
-        <button class="btn btn-primary btn-sm" onclick="showTab('tab-nueva')" id="tab-btn-nueva">+ Nueva
-          Formación</button>
-        <button class="btn btn-outline btn-sm" onclick="showTab('tab-historial')" id="tab-btn-historial">📂
-          Historial</button>
+      <div style="display:flex;gap:6px;margin-bottom:20px;flex-wrap:wrap;">
+        <button class="btn btn-primary btn-sm" onclick="showTab('tab-nueva')" id="tab-btn-nueva">+ Nueva Formación</button>
+        <button class="btn btn-outline btn-sm" onclick="showTab('tab-historial')" id="tab-btn-historial">📂 Historial</button>
+        <button class="btn btn-outline btn-sm" onclick="showTab('tab-trabajadores')" id="tab-btn-trabajadores">👥 Trabajadores</button>
       </div>
       <div id="tab-nueva">
         <div class="form-group"><label>FECHA</label><input type="date" id="f-fecha"></div>
@@ -825,6 +824,34 @@
         <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:12px;">Últimas formaciones registradas</p>
         <div id="historial-container" class="historial-list">
           <p style="color:var(--text-muted);text-align:center;padding:20px;">Cargando...</p>
+        </div>
+        <hr class="divider">
+        <button class="btn btn-outline" onclick="cerrarSesion()">🔒 Cerrar Sesión</button>
+      </div>
+
+      <!-- TAB: Trabajadores -->
+      <div id="tab-trabajadores" style="display:none;">
+        <div class="search-stats-header">
+          <div class="filter-group">
+            <label>🔍 BUSCAR POR NOMBRE O APELLIDO</label>
+            <input type="text" id="t-search" placeholder="Escribe para buscar..." oninput="filtrarTrabajadores()">
+          </div>
+          <div class="filter-group">
+            <label>🔢 FILTRAR POR Cursos</label>
+            <select id="t-min-cursos" onchange="filtrarTrabajadores()" style="background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:8px; border-radius:10px; width:100%;">
+              <option value="0">Todos</option>
+              <option value="1">1+ curso</option>
+              <option value="3">3+ cursos</option>
+              <option value="5">5+ cursos</option>
+            </select>
+          </div>
+          <div style="display:flex; gap:6px; width:100%; margin-top:10px;">
+            <button class="btn btn-outline btn-sm" style="flex:1" onclick="ordenarTrabajadores('apellido')">🔤 Apellido</button>
+            <button class="btn btn-outline btn-sm" style="flex:1" onclick="ordenarTrabajadores('cursos')">📊 Cursos</button>
+          </div>
+        </div>
+        <div id="worker-list" class="worker-list-container" style="max-height:400px; overflow-y:auto;">
+          <p style="text-align:center; color:var(--text-muted); padding:40px;">Cargando censo...</p>
         </div>
         <hr class="divider">
         <button class="btn btn-outline" onclick="cerrarSesion()">🔒 Cerrar Sesión</button>
@@ -969,6 +996,14 @@
     </div>
   </div>
 
+  <!-- MODAL DETALLE TRABAJADOR -->
+  <div class="overlay" id="overlay-worker">
+    <div class="modal modal-worker-detail" style="max-width:450px; text-align:left;">
+      <div id="worker-detail-content"></div>
+      <button class="btn btn-primary mt-8" onclick="cerrarModalWorker()">Entendido</button>
+    </div>
+  </div>
+
   <div class="toast" id="toast"></div>
 
   <script>
@@ -1003,10 +1038,16 @@
     function showScreen(id) { document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); document.getElementById('screen-' + id).classList.add('active'); }
     function showToast(msg, type = 'success') { const t = document.getElementById('toast'); t.textContent = msg; t.className = 'toast ' + type; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3500); }
     function showTab(id) {
-      ['tab-nueva', 'tab-historial'].forEach(t => document.getElementById(t).style.display = t === id ? 'block' : 'none');
+      ['tab-nueva', 'tab-historial', 'tab-trabajadores'].forEach(t => {
+        const el = document.getElementById(t);
+        if (el) el.style.display = t === id ? 'block' : 'none';
+      });
       document.getElementById('tab-btn-nueva').className = id === 'tab-nueva' ? 'btn btn-primary btn-sm' : 'btn btn-outline btn-sm';
       document.getElementById('tab-btn-historial').className = id === 'tab-historial' ? 'btn btn-primary btn-sm' : 'btn btn-outline btn-sm';
+      document.getElementById('tab-btn-trabajadores').className = id === 'tab-trabajadores' ? 'btn btn-primary btn-sm' : 'btn btn-outline btn-sm';
+      
       if (id === 'tab-historial') cargarHistorial();
+      if (id === 'tab-trabajadores') cargarBuscadorTrabajadores();
     }
     function updatePinDots(pin, prefix) { for (let i = 0; i < 4; i++) document.getElementById(prefix + i)?.classList.toggle('filled', i < pin.length); }
 
@@ -1322,8 +1363,76 @@
     }
     function cerrarSesion() { pinActual = ''; updatePinDots('', 'dot-'); document.getElementById('pin-error').textContent = ''; showScreen('pin'); }
 
+    // ── BUSCADOR DE TRABAJADORES (NUEVO) ──────────────────────
+    let _workersData = [];
+    let _sortOrder = { key: 'apellido', desc: false };
+
+    async function cargarBuscadorTrabajadores() {
+      const listCont = document.getElementById('worker-list');
+      if (_workersData.length > 0) { renderizarTrabajadores(); return; }
+      try {
+        const res = await apiGet('getTrabajadoresConEstadisticas');
+        if (res.success) {
+          _workersData = res.trabajadores;
+          ordenarTrabajadores('apellido');
+        } else {
+          listCont.innerHTML = `<p style="color:var(--danger); padding:20px;">Error: ${res.error}</p>`;
+        }
+      } catch (e) { listCont.innerHTML = `<p style="color:var(--danger); padding:20px;">Error: ${e.message}</p>`; }
+    }
+
+    function filtrarTrabajadores() {
+      const query = document.getElementById('t-search').value.toLowerCase();
+      const minCursos = parseInt(document.getElementById('t-min-cursos').value);
+      const filtrados = _workersData.filter(t => (t.nombreCompleto.toLowerCase().includes(query) || t.dni.includes(query)) && t.count >= minCursos);
+      renderizarTrabajadores(filtrados);
+    }
+
+    function ordenarTrabajadores(key) {
+      if (_sortOrder.key === key) _sortOrder.desc = !_sortOrder.desc;
+      else { _sortOrder.key = key; _sortOrder.desc = (key === 'cursos'); }
+      _workersData.sort((a, b) => {
+        let valA = key === 'apellido' ? a.apellido.toLowerCase() : a.count;
+        let valB = key === 'apellido' ? b.apellido.toLowerCase() : b.count;
+        return valA < valB ? (_sortOrder.desc ? 1 : -1) : (valA > valB ? (_sortOrder.desc ? -1 : 1) : 0);
+      });
+      filtrarTrabajadores();
+    }
+
+    function renderizarTrabajadores(data = _workersData) {
+      const listCont = document.getElementById('worker-list');
+      if (data.length === 0) { listCont.innerHTML = `<p style="text-align:center; padding:40px; color:var(--text-muted);">Sin resultados.</p>`; return; }
+      listCont.innerHTML = data.map(t => `
+        <div class="worker-card" onclick="verDetalleTrabajador('${t.dni}')" style="display:flex; justify-content:space-between; align-items:center; padding:12px; border:1px solid var(--border); border-radius:12px; margin-bottom:8px; cursor:pointer; background: var(--surface2);">
+          <div>
+            <div style="font-weight:600; color:var(--text);">${t.nombreCompleto}</div>
+            <div style="font-size:0.75rem; color:var(--text-muted); font-family:monospace;">${t.dni}</div>
+          </div>
+          <div style="text-align:right;">
+             <div style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; font-weight:700;">Cursos</div>
+             <div style="background:var(--primary); color:white; width:28px; height:28px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-weight:bold; font-size:0.8rem;">${t.count}</div>
+          </div>
+        </div>`).join('');
+    }
+
+    function verDetalleTrabajador(dni) {
+      const worker = _workersData.find(w => w.dni === dni);
+      if (!worker) return;
+      const sortedForms = [...worker.formaciones].sort((a,b) => b.fecha.split('/').reverse().join('').localeCompare(a.fecha.split('/').reverse().join('')));
+      document.getElementById('worker-detail-content').innerHTML = `
+        <h3 style="color:var(--primary); margin-bottom:4px;">${worker.nombreCompleto}</h3>
+        <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:15px; border-bottom:1px solid var(--border); padding-bottom:8px;">DNI: ${worker.dni} | ${worker.count} cursos realizados</p>
+        <div style="max-height:300px; overflow-y:auto;">
+          ${sortedForms.map(f => `<div style="padding:8px 0; border-bottom:1px dashed var(--border); font-size:0.85rem;">
+            <div style="color:var(--primary); font-size:0.7rem; font-weight:700;">${f.fecha}</div>
+            <div style="color:var(--text);">${f.titulo}</div>
+          </div>`).join('') || '<p style="text-align:center; padding:20px; color:var(--text-muted);">Sin cursos.</p>'}
+        </div>`;
+      document.getElementById('overlay-worker').classList.add('active');
+    }
+    function cerrarModalWorker() { document.getElementById('overlay-worker').classList.remove('active'); }
+
     window.onload = () => renderizarFirmasSesion();
   </script>
 </body>
-
 </html>
