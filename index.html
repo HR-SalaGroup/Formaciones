@@ -791,8 +791,19 @@
       </div>
       <div id="tab-nueva">
         <div class="form-group"><label>FECHA</label><input type="date" id="f-fecha"></div>
-        <div class="form-group"><label>TÍTULO DEL CURSO</label><input type="text" id="f-titulo"
-            placeholder="Ej: Manipulación de alimentos"></div>
+        <div class="form-group">
+          <label>TÍTULO DEL CURSO</label>
+          <select id="f-curso-preset" onchange="handleCursoChange(this.value)">
+            <option value="" disabled selected>-- Seleccione un curso --</option>
+            <option value="BASIC SERVICE TRAINING">BASIC SERVICE TRAINING</option>
+            <option value="HOSPITALITY VS SERVICE">HOSPITALITY VS SERVICE</option>
+            <option value="INDUCTION">INDUCTION</option>
+            <option value="ASK FORM ANGELA TRAINING">ASK FORM ANGELA TRAINING</option>
+            <option value="FIDELIZACION">FIDELIZACION</option>
+            <option value="OTRO">OTRO CURSO (Introducir manualmente)</option>
+          </select>
+          <input type="text" id="f-titulo" style="margin-top:10px; display:none;" placeholder="Título del curso">
+        </div>
         <div class="form-group"><label>DESCRIPCIÓN</label><textarea id="f-descripcion"
             placeholder="Descripción breve..."></textarea></div>
         <div class="form-group"><label>INSTRUCTOR</label><input type="text" id="f-instructor"
@@ -1033,6 +1044,30 @@
     let formacionActual = null;
     let trabajadores = [], firmasSesion = [];
     let signaturePad = null;
+
+    // ── LÓGICA DE CURSOS ──────────────────────────────────────
+    const CURSOS_PRESETS = {
+      "BASIC SERVICE TRAINING": "Metodología de trabajo y visión de futuro para cada miembro del equipo.",
+      "HOSPITALITY VS SERVICE": "Diferencia entre servicio y hospitalidad. Pilares: Trabajo en equipo y Upselling.",
+      "INDUCTION": "Recorrido por el ADN, historia y diversidad de nuestros establecimientos.",
+      "ASK FORM ANGELA TRAINING": "Concienciación y reacción eficaz ante situaciones de vulnerabilidad en el ocio nocturno.",
+      "FIDELIZACION": "Programas de lealtad: membresías exclusivas y beneficios estratégicos."
+    };
+
+    function handleCursoChange(val) {
+      const inputTitulo = document.getElementById('f-titulo');
+      const inputDesc = document.getElementById('f-descripcion');
+      if (val === 'OTRO') {
+        inputTitulo.style.display = 'block';
+        inputTitulo.value = '';
+        inputDesc.value = '';
+        inputTitulo.focus();
+      } else {
+        inputTitulo.style.display = 'none';
+        inputTitulo.value = val;
+        inputDesc.value = CURSOS_PRESETS[val] || '';
+      }
+    }
 
     // ── UTILIDADES UI ──────────────────────────────────────────
     function showScreen(id) { document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); document.getElementById('screen-' + id).classList.add('active'); }
